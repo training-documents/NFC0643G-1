@@ -1,0 +1,37 @@
+
+
+# 
+# PowerShellを管理者として実行すること
+# ADへのパーミッションにも影響する
+# 
+
+
+# Active Directoryモジュールのインポート
+Import-Module ActiveDirectory
+
+# G_NwAdminsグループの作成
+New-ADGroup -Name "G_NwAdmins" `
+            -GroupScope Global `
+            -GroupCategory Security `
+            -Path "OU=Groups,DC=example,DC=local" `
+            -SamAccountName "G_NwAdmins"
+
+# "Tom" ユーザーをG_NwAdminsグループに追加
+Add-ADGroupMember -Identity "G_NwAdmins" -Members "Tom"
+
+
+
+# DL_Router_RemoteConnectグループの作成
+New-ADGroup -Name "DL_Router_RemoteConnect" `
+            -GroupScope DomainLocal `
+            -GroupCategory Security `
+            -Path "OU=Groups,DC=example,DC=local" `
+            -SamAccountName "DL_Router_RemoteConnect"
+
+# G_NwAdminsグループをDL_Router_RemoteConnectグループに追加
+Add-ADGroupMember -Identity "DL_Router_RemoteConnect" -Members "G_NwAdmins"
+
+
+
+
+

@@ -1,0 +1,59 @@
+
+
+
+
+
+
+# ローカル ユーザー Tomを作成
+New-LocalUser -Name "Tom" -Password (ConvertTo-SecureString 'Pa$$w0rd' -AsPlainText -Force) -PasswordNeverExpires
+
+# ローカル ユーザー Jerryを作成
+New-LocalUser -Name "Jerry" -Password (ConvertTo-SecureString 'Pa$$w0rd' -AsPlainText -Force) -PasswordNeverExpires
+
+# ローカル グループ File Server Usersを作成
+New-LocalGroup -Name "File Server Users"
+
+# ローカル グループ File Server Usersのメンバーを追加
+Add-LocalGroupMember -Group "File Server Users" -Member "Tom"
+Add-LocalGroupMember -Group "File Server Users" -Member "Jerry"
+
+# フォルダを作成する
+$folderPath = "C:\Share"
+New-Item -ItemType Directory -Path $folderPath
+
+# フォルダC:\Shareを共有する
+$shareName = "Share"
+New-SmbShare -Name $shareName -Path $folderPath -FullAccess Everyone
+
+# フォルダC:\ShareのNTFSアクセス許可を設定する
+$acl = Get-Acl $folderPath
+
+# 継承されたアクセス許可をこのオブジェクトの明示的なアクセス許可に変換する
+$acl.SetAccessRuleProtection($true, $true)
+
+# Authenticated Userのアクセス権を削除する
+$acl.Access | Where-Object { $_.IdentityReference -eq "NT AUTHORITY\Authenticated Users" } | ForEach-Object { $acl.RemoveAccessRule($_) }
+
+# Userのアクセス権を削除する
+$acl.Access | Where-Object { $_.IdentityReference -eq "BUILTIN\Users" } | ForEach-Object { $acl.RemoveAccessRule($_) }
+
+# File Server Users グループに変更を許可する
+$permission = "Modify"
+$fileServerUsers = New-Object System.Security.Principal.NTAccount("File Server Users")
+$fileServerUsersAccessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($fileServerUsers, $permission, "ContainerInherit, ObjectInherit", "None", "Allow")
+$acl.AddAccessRule($fileServerUsersAccessRule)
+
+# Tomの書き込みを拒否する
+$denyPermission = "Write"
+$Tom = New-Object System.Security.Principal.NTAccount("Tom")
+$TomAccessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($Tom, $denyPermission, "ContainerInherit, ObjectInherit", "None", "Deny")
+$acl.AddAccessRule($TomAccessRule)
+
+# ACLを設定する
+Set-Acl $folderPath $acl
+
+
+
+
+
+

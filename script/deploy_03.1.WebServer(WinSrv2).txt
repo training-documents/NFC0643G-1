@@ -1,0 +1,106 @@
+# NWアダプタ"トランクNW"のIPアドレスの第2オクテットの数字を取得し、変数$PodNumberに代入する
+$adapterName = "トランクNW"
+$ipAddress = (Get-NetIPAddress -InterfaceAlias $adapterName -AddressFamily IPv4).IPAddress
+$PodNumber = $ipAddress.Split('.')[1]
+
+# Webサーバー(IIS)の役割をインストールする
+Install-WindowsFeature -name Web-Server -IncludeManagementTools
+
+# WebコンテンツフォルダのNTFSアクセス権を変更し、管理者アカウント(admin)にフルコントロール許可を与える
+$folderPath = "C:\inetpub\wwwroot"
+$acl = Get-Acl $folderPath
+$adminAccount = [System.Security.Principal.NTAccount]::new("admin")
+$accessRule = [System.Security.AccessControl.FileSystemAccessRule]::new($adminAccount, "FullControl", "ContainerInherit, ObjectInherit", "None", "Allow")
+$acl.SetAccessRule($accessRule)
+Set-Acl $folderPath $acl
+
+# フォルダ作成
+New-Item -ItemType Directory -Path "C:\inetpub\wwwroot\web1"
+
+# Webコンテンツとしてテキストファイルを作成する
+$documentPath = "C:\inetpub\wwwroot\web1\document.txt"
+Set-Content -Path $documentPath -Value "It Love WEB servers!"
+
+$indexPath = "C:\inetpub\wwwroot\web1\index.html"
+New-Item -ItemType File -Path $indexPath
+
+
+$sharePath = "C:\Share\"
+
+# Virtual Hostingで複数のWebサイトを提供するための設定
+# C:\ShareのNTFSアクセス許可を設定し、"IUSR"と"IIS_IUSRS"に読み取り実行の許可を与える
+$acl = Get-Acl $sharePath
+$users = @("IUSR", "IIS_IUSRS")
+foreach ($user in $users) {
+    $account = [System.Security.Principal.NTAccount]::new($user)
+    $accessRule = [System.Security.AccessControl.FileSystemAccessRule]::new($account, "ReadAndExecute", "ContainerInherit, ObjectInherit", "None", "Allow")
+    $acl.AddAccessRule($accessRule)
+}
+Set-Acl $sharePath $acl
+
+# IISの新しいサイトを追加する
+Import-Module WebAdministration
+New-WebSite -Name "Web Share" -PhysicalPath $sharePath -Port 1080 -Force
+
+# Web Shareサイトでディレクトリ参照を有効にする
+Set-WebConfigurationProperty -Filter "system.webServer/directoryBrowse" -name enabled -value true -PSPath "IIS:\Sites\Web Share"
+
+# C:\Share\web.config を隠しファイルにする
+$webConfigPath = "C:\Share\web.config"
+attrib +h $webConfigPath
+
+# エラーページをカスタマイズする
+# "C:\Share\404err.html"を作成し、HTMLテキストを記述する
+$errorPagePath = "C:\Share\404err.html"
+$errorPageContent = @"
+<html>
+<meta charset="UTF-8">
+指定されたファイルがありません。
+<a href="/">トップページ</a>に戻ってください。
+</html>
+"@
+Set-Content -Path $errorPagePath -Value $errorPageContent
+
+# Web Shareサイトの404エラーページを設定する
+Set-WebConfigurationProperty -PSPath "IIS:\Sites\Web Share" -Filter "system.webServer/httpErrors" -name "errorMode" -value "Custom"
+Remove-WebConfigurationProperty -PSPath "IIS:\Sites\Web Share" -Filter "system.webServer/httpErrors" -Name "." -AtElement @{statusCode=404; subStatusCode=-1}
+Add-WebConfigurationProperty -PSPath "IIS:\Sites\Web Share" -Filter "system.webServer/httpErrors" -name "." -value @{statusCode=404; path="/404err.html"; responseMode="ExecuteURL"}
+
+# IISの役割サービス(基本認証、HTTPリダイレクト)を追加インストールする
+Install-WindowsFeature Web-Basic-Auth, Web-Http-Redirect
+
+# HTTPリダイレクトを構成する
+# C:\Share\oldpage フォルダを作成する
+New-Item -ItemType Directory -Path "C:\Share\oldpage"
+
+# Default Web Siteに仮想ディレクトリを追加する
+New-WebVirtualDirectory -Site "Default Web Site" -Name "oldpage" -PhysicalPath "C:\Share\oldpage"
+
+# [Default Web Site]-[oldpage]にHTTPリダイレクトを構成する
+Set-WebConfigurationProperty -PSPath "IIS:\Sites\Default Web Site\oldpage" -Filter "system.webServer/httpRedirect" -name enabled -value true
+Set-WebConfigurationProperty -PSPath "IIS:\Sites\Default Web Site\oldpage" -Filter "system.webServer/httpRedirect" -name destination -value "http://10.$PodNumber.2.105:1080/"
+
+# HTTP基本認証を構成する
+# 親レベルでセクションのロックを解除する
+# [Default Web Site]-[web1]の基本認証を有効にする
+Set-WebConfigurationProperty -Filter /system.webServer/security/authentication/basicAuthentication -name enabled -value true -PSPath "IIS:\" -Location "Default Web Site/web1"
+# [Default Web Site]-[web1]の匿名認証を無効にする
+Set-WebConfigurationProperty -Filter /system.webServer/security/authentication/anonymousAuthentication -name enabled -value false -PSPath "IIS:\" -Location "Default Web Site/web1"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

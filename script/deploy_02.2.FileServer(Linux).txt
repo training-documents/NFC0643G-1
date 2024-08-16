@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Create the shared directory and set permissions
+sudo mkdir /share
+sudo chmod o+w /share
+
+# Add user Tom and set password
+sudo useradd Tom
+echo "Tom:Pa\$\$w0rd" | sudo chpasswd
+
+# Add user Jerry and set password
+sudo useradd Jerry
+echo "Jerry:Pa\$\$w0rd" | sudo chpasswd
+
+# Install Samba
+sudo yum -y install samba-4.10.16-24.el7_9.x86_64
+
+# Add Tom to Samba database and set password
+sudo pdbedit -a -u "Tom" -t <<EOF
+Pa\$\$w0rd
+Pa\$\$w0rd
+EOF
+
+# Add Jerry to Samba database and set password
+sudo pdbedit -a -u "Jerry" -t <<EOF
+Pa\$\$w0rd
+Pa\$\$w0rd
+EOF
+
+# Backup the original smb.conf file
+sudo cp /etc/samba/smb.conf /etc/samba/smb.conf.bak
+
+# Create a temporary file with the new share configuration
+cat <<EOL > /tmp/smb.conf.add
+[share]
+path = /share
+writable = Yes
+read list = Jerry
+EOL
+
+# Append the new share configuration to smb.conf
+sudo sed -i -e "\$r /tmp/smb.conf.add" /etc/samba/smb.conf
+
+# Remove the temporary configuration file
+rm /tmp/smb.conf.add
+
+# Enable and start the Samba service
+sudo systemctl enable smb
+sudo systemctl start smb

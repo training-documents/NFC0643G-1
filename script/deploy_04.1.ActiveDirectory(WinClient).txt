@@ -1,0 +1,13 @@
+# NWアダプタ"内部NW"のIPアドレスの第2オクテットの数字を取得し、変数$PodNumberに代入する
+$adapterName = "内部NW"
+$ipAddress = (Get-NetIPAddress -InterfaceAlias $adapterName -AddressFamily IPv4).IPAddress
+$PodNumber = $ipAddress.Split('.')[1]
+
+# DNSサーバーの設定
+$dnsServer = "10.$PodNumber.1.104"
+
+# "内部NW"アダプターのDNSサーバーを設定する
+$internalAdapterName = "内部NW"
+Set-DnsClientServerAddress -InterfaceAlias $internalAdapterName -ServerAddresses $dnsServer
+
+

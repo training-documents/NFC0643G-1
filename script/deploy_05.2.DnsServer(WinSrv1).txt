@@ -1,0 +1,17 @@
+# DNSサーバーモジュールをインポート
+Import-Module DNSServer
+
+# NWアダプタ"内部NW"のIPアドレスの第2オクテットの数字を取得し、変数$PodNumberに代入する
+$adapterName = "内部NW"
+$ipAddress = (Get-NetIPAddress -InterfaceAlias $adapterName -AddressFamily IPv4).IPAddress
+$PodNumber = $ipAddress.Split('.')[1]
+
+# 条件付きフォワーダーの設定
+$zoneName = "example.com"
+$masterServerIP = "10.$PodNumber.1.102"
+$timeout = 5
+
+# 条件付きフォワーダーを追加
+Add-DnsServerConditionalForwarderZone -Name $zoneName -MasterServers $masterServerIP -ReplicationScope "Domain" -ForwarderTimeout $timeout
+
+Write-Output "Conditional forwarder for '$zoneName' configured with master server '$masterServerIP' and timeout '$timeout' seconds."

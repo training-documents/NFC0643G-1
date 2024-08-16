@@ -1,0 +1,97 @@
+
+
+# DNSサーバーモジュールをインポート
+Import-Module DNSServer
+
+# NWアダプタ"内部NW"のIPアドレスの第2オクテットの数字を取得し、変数$PodNumberに代入する
+$adapterName = "内部NW"
+$ipAddress = (Get-NetIPAddress -InterfaceAlias $adapterName -AddressFamily IPv4).IPAddress
+$PodNumber = $ipAddress.Split('.')[1]
+
+# "example.local"ゾーンにAレコードを追加する
+$zoneName = "example.local"
+
+$ARecords = @(
+    @{ Name = "WSrv2"; IP = "10.$PodNumber.2.105" },
+    @{ Name = "Linux1"; IP = "10.$PodNumber.1.102" },
+    @{ Name = "Linux2"; IP = "10.$PodNumber.3.106" },
+    @{ Name = "Router1"; IP = "10.$PodNumber.2.253" },
+    @{ Name = "Router2"; IP = "10.$PodNumber.2.254" }
+)
+
+foreach ($record in $ARecords) {
+    Add-DnsServerResourceRecordA -Name $record.Name -ZoneName $zoneName -IPv4Address $record.IP
+    Write-Output "Added A record for $($record.Name) with IP $($record.IP) to zone $zoneName"
+}
+
+
+
+# "example.local"ゾーンにCNAMEレコードを作成する
+
+# "example.local" ゾーンの "WSrv-" で始まるAレコードを取得する
+$zoneName = "example.local"
+$records1 = Get-DnsServerResourceRecord -ZoneName $zoneName | Where-Object { $_.RecordType -eq "A" -and $_.HostName -like "WSrv1-*" }
+
+$WinSrv1Arecord = $records1.HostName
+
+$records2 = Get-DnsServerResourceRecord -ZoneName $zoneName | Where-Object { $_.RecordType -eq "A" -and $_.HostName -like "WSrv2-*" }
+
+$WinSrv2Arecord = $records2.HostName
+
+$CNAMERecords = @(
+    @{ Name = "AD"; Target = "$($WinSrv1Arecord).$zoneName" },
+    @{ Name = "Web1"; Target = "WSrv2.$zoneName" },
+    @{ Name = "Web2"; Target = "Linux1.$zoneName" },
+    @{ Name = "File1"; Target = "WSrv2.$zoneName" },
+    @{ Name = "File2"; Target = "Linux1.$zoneName" },
+    @{ Name = "DNS1"; Target = "$($WinSrv1Arecord).$zoneName" },
+    @{ Name = "DNS2"; Target = "WSrv2.$zoneName" },
+    @{ Name = "DNS3"; Target = "Linux1.$zoneName" }
+)
+
+foreach ($record in $CNAMERecords) {
+    Add-DnsServerResourceRecordCName -Name $record.Name -ZoneName $zoneName -HostNameAlias $record.Target
+    Write-Output "Added CNAME record for $($record.Name) pointing to $($record.Target) in zone $zoneName"
+}
+
+
+
+
+# すべてのセカンダリDNSサーバーにゾーン転送を許可
+Set-DnsServerPrimaryZone -Name "example.local" -SecureSecondaries "TransferAnyServer" 
+
+
+
+
+
+
+# NWアダプタ"内部NW"のIPアドレスの第2オクテットの数字を取得し、変数$PodNumberに代入する
+$adapterName = "内部NW"
+$ipAddress = (Get-NetIPAddress -InterfaceAlias $adapterName -AddressFamily IPv4).IPAddress
+$PodNumber = $ipAddress.Split('.')[1]
+
+# DNSサーバーモジュールをインポート
+Import-Module DNSServer
+
+# サブドメインの委任情報
+$parentZone = "example.local"
+$subDomain = "sub"
+$subDomainFQDN = "$subDomain.$parentZone"
+$dnsServerFQDN = "DNS2-2.$parentZone"
+$dnsServerIP = "10.$PodNumber.2.105"
+
+# サブドメインの委任を作成する
+Add-DnsServerZoneDelegation -Name $parentZone -ChildZoneName $subDomain  -NameServer $dnsServerFQDN -IPAddress $dnsServerIP
+
+Write-Output "Delegation for subdomain '$subDomainFQDN' created with name server '$dnsServerFQDN' and IP address '$dnsServerIP'."
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,111 @@
+
+
+
+
+
+Import-Module DnsServer
+
+# NWアダプタ"内部NW"のIPアドレスの第2オクテットの数字を取得し、変数$PodNumberに代入する
+$adapterName = "内部NW"
+$ipAddress = (Get-NetIPAddress -InterfaceAlias $adapterName -AddressFamily IPv4).IPAddress
+$PodNumber = $ipAddress.Split('.')[1]
+
+# DNSサーバーの設定
+$Server = "10.$PodNumber.1.104"
+
+# ドメイン名とドメインコントローラーのホスト名とIPアドレスを指定します
+$domainName = "example.local"
+$dcHostName = $env:COMPUTERNAME
+$dcIpAddress = $Server
+
+# Aレコードの作成
+Add-DnsServerResourceRecordA -Name $dcHostName -ZoneName $domainName -IPv4Address $dcIpAddress
+
+# SRVレコードの作成
+# _ldap._tcp.dc._msdcs.example.local
+Add-DnsServerResourceRecord -ZoneName $domainName -Name "_ldap._tcp.dc._msdcs" -Srv -DomainName "$dcHostName.$domainName" -Priority 0 -Weight 100 -Port 389
+
+# _kerberos._tcp.dc._msdcs.example.local
+Add-DnsServerResourceRecord -ZoneName $domainName -Name "_kerberos._tcp.dc._msdcs" -Srv -DomainName "$dcHostName.$domainName" -Priority 0 -Weight 100 -Port 88
+
+# _ldap._tcp.example.local
+Add-DnsServerResourceRecord -ZoneName $domainName -Name "_ldap._tcp" -Srv -DomainName "$dcHostName.$domainName" -Priority 0 -Weight 100 -Port 389
+
+# _kerberos._tcp.example.local
+Add-DnsServerResourceRecord -ZoneName $domainName -Name "_kerberos._tcp" -Srv -DomainName "$dcHostName.$domainName" -Priority 0 -Weight 100 -Port 88
+
+# _ldap._tcp.Default-First-Site-Name._sites.example.local
+Add-DnsServerResourceRecord -ZoneName $domainName -Name "_ldap._tcp.Default-First-Site-Name._sites" -Srv -DomainName "$dcHostName.$domainName" -Priority 0 -Weight 100 -Port 389
+
+# _kerberos._tcp.Default-First-Site-Name._sites.example.local
+Add-DnsServerResourceRecord -ZoneName $domainName -Name "_kerberos._tcp.Default-First-Site-Name._sites" -Srv -DomainName "$dcHostName.$domainName" -Priority 0 -Weight 100 -Port 88
+
+# _ldap._tcp.pdc._msdcs.example.local
+Add-DnsServerResourceRecord -ZoneName $domainName -Name "_ldap._tcp.pdc._msdcs" -Srv -DomainName "$dcHostName.$domainName" -Priority 0 -Weight 100 -Port 389
+
+# _ldap._tcp.gc._msdcs.example.local
+Add-DnsServerResourceRecord -ZoneName $domainName -Name "_ldap._tcp.gc._msdcs" -Srv -DomainName "$dcHostName.$domainName" -Priority 0 -Weight 100 -Port 3268
+
+# _gc._tcp.example.local
+Add-DnsServerResourceRecord -ZoneName $domainName -Name "_gc._tcp" -Srv -DomainName "$dcHostName.$domainName" -Priority 0 -Weight 100 -Port 3268
+
+# _kerberos._udp.example.local
+Add-DnsServerResourceRecord -ZoneName $domainName -Name "_kerberos._udp" -Srv -DomainName "$dcHostName.$domainName" -Priority 0 -Weight 100 -Port 88
+
+# _kpasswd._tcp.example.local
+Add-DnsServerResourceRecord -ZoneName $domainName -Name "_kpasswd._tcp" -Srv -DomainName "$dcHostName.$domainName" -Priority 0 -Weight 100 -Port 464
+
+# _kpasswd._udp.example.local
+Add-DnsServerResourceRecord -ZoneName $domainName -Name "_kpasswd._udp" -Srv -DomainName "$dcHostName.$domainName" -Priority 0 -Weight 100 -Port 464
+
+
+
+
+Import-Module ActiveDirectory
+
+# 新しいOU "Employees" を作成する
+New-ADOrganizationalUnit -Name "Employees" -Path "DC=example,DC=local" -ProtectedFromAccidentalDeletion $true
+
+# 新しいOU "Groups" を作成する
+New-ADOrganizationalUnit -Name "Groups" -Path "DC=example,DC=local" -ProtectedFromAccidentalDeletion $true
+
+# 新しいユーザー "Tom" を作成する
+New-ADUser -Name "Tom" -GivenName "Tom" -SamAccountName "Tom" -UserPrincipalName "Tom@example.local" -Path "OU=Employees,DC=example,DC=local" -AccountPassword (ConvertTo-SecureString 'Pa$$w0rd' -AsPlainText -Force) -PasswordNeverExpires $true -Enabled $true
+
+# 新しいユーザー "Jerry" を作成する
+New-ADUser -Name "Jerry" -GivenName "Jerry" -SamAccountName "Jerry" -UserPrincipalName "Jerry@example.local" -Path "OU=Employees,DC=example,DC=local" -AccountPassword (ConvertTo-SecureString 'Pa$$w0rd' -AsPlainText -Force) -PasswordNeverExpires $true -Enabled $true
+
+# 新しいユーザー "Spike" を作成する
+New-ADUser -Name "Spike" -GivenName "Spike" -SamAccountName "Spike" -UserPrincipalName "Spike@example.local" -Path "OU=Employees,DC=example,DC=local" -AccountPassword (ConvertTo-SecureString 'Pa$$w0rd' -AsPlainText -Force) -PasswordNeverExpires $true -Enabled $true
+
+# 新しいグループ "G_ClientAdmins" を作成する
+New-ADGroup -Name "G_ClientAdmins" -GroupScope Global -GroupCategory Security -Path "OU=Groups,DC=example,DC=local"
+
+# 新しいグループ "DL_WinClient_FullControl" を作成する
+New-ADGroup -Name "DL_WinClient_FullControl" -GroupScope DomainLocal -GroupCategory Security -Path "OU=Groups,DC=example,DC=local"
+
+# グループのメンバーシップを構成する
+Add-ADGroupMember -Identity "G_ClientAdmins" -Members "Tom"
+Add-ADGroupMember -Identity "Domain Admins" -Members "Spike"
+Add-ADGroupMember -Identity "DL_WinClient_FullControl" -Members "G_ClientAdmins"
+
+
+
+Import-Module ActiveDirectory
+
+# 新しいグループ "DL_FileServer_ReadOnly" を作成する
+New-ADGroup -Name "DL_FileServer_ReadOnly" -GroupScope DomainLocal -GroupCategory Security -Path "OU=Groups,DC=example,DC=local" -Description "Domain Local Group for Read-Only access to File Server"
+
+# 新しいグループ "DL_FileServer_FullAccess" を作成する
+New-ADGroup -Name "DL_FileServer_FullAccess" -GroupScope DomainLocal -GroupCategory Security -Path "OU=Groups,DC=example,DC=local" -Description "Domain Local Group for Full Access to File Server"
+
+# "DL_FileServer_ReadOnly" グループに、"Domain Users" を所属させる
+Add-ADGroupMember -Identity "DL_FileServer_ReadOnly" -Members "Domain Users"
+
+# "DL_FileServer_FullAccess" グループに、"G_ClientAdmins" を所属させる
+Add-ADGroupMember -Identity "DL_FileServer_FullAccess" -Members "G_ClientAdmins"
+
+# "G_ClientAdmins" グループに、"Jerry" を所属させる
+Add-ADGroupMember -Identity "G_ClientAdmins" -Members "Jerry"
+
+

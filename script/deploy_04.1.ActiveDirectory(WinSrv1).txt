@@ -1,0 +1,30 @@
+
+# 手作業でインストールすること
+# DNSレコードが構成されないトラブルが生じる
+
+
+
+# Active Directory ドメイン サービスの役割を追加する
+Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools
+
+# インポート
+Import-Module ADDSDeployment
+
+# 新しいフォレストを追加し、ドメイン コントローラーに昇格する
+Install-ADDSForest `
+    -DomainName "example.local" `
+    -DomainNetbiosName "EXAMPLE" `
+    -ForestMode "WinThreshold" `
+    -DomainMode "WinThreshold" `
+    -InstallDNS `
+    -CreateDnsDelegation:$false `
+    -DatabasePath "C:\Windows\NTDS" `
+    -LogPath "C:\Windows\NTDS" `
+    -SysvolPath "C:\Windows\SYSVOL" `
+    -NoRebootOnCompletion:$true `
+    -Force:$true `
+    -SafeModeAdministratorPassword (ConvertTo-SecureString 'Pa$$w0rd' -AsPlainText -Force)
+
+# サーバーを再起動してインストールを完了する
+Restart-Computer
+

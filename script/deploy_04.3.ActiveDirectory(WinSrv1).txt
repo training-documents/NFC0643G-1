@@ -1,0 +1,83 @@
+
+
+
+
+Import-Module ActiveDirectory
+
+# "WallHole" OUの作成
+$ouPath = "OU=Employees,DC=example,DC=local"
+$newOU = "OU=WallHole,$ouPath"
+New-ADOrganizationalUnit -Name "WallHole" -Path $ouPath -ProtectedFromAccidentalDeletion $true
+
+Write-Output "Organizational Unit 'WallHole' created under 'Employees'."
+
+# "Jerry" を "WallHole" OUに移動
+$userCN = "CN=Jerry,OU=Employees,DC=example,DC=local"
+Move-ADObject -Identity $userCN -TargetPath $newOU
+
+Write-Output "User 'Jerry' moved to 'WallHole' OU."
+
+
+
+
+# Import the Group Policy module
+Import-Module GroupPolicy
+
+# HideClock GPOの作成とリンク
+$GPOName1 = "HideClock"
+$OUPath1 = "OU=Employees,DC=example,DC=local"
+New-GPO -Name $GPOName1 -Comment "Hide the clock in the system tray"
+New-GPLink -Name $GPOName1 -Target $OUPath1
+
+# HideClock GPOの設定
+Set-GPRegistryValue -Name $GPOName1 -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" -ValueName "HideClock" -Type DWord -Value 1
+
+# HideTrashBox GPOの作成とリンク
+$GPOName2 = "HideTrashBox"
+$OUPath2 = "OU=WallHole,OU=Employees,DC=example,DC=local"
+New-GPO -Name $GPOName2 -Comment "Remove the Recycle Bin icon from the desktop"
+New-GPLink -Name $GPOName2 -Target $OUPath2
+
+# HideTrashBox GPOの設定
+Set-GPRegistryValue -Name $GPOName2 -Key "HKCU\Software\Microsoft\Windows\CurrentVersion\Policies\NonEnum" -ValueName "{645FF040-5081-101B-9F08-00AA002F954E}" -Type DWord -Value 1
+
+Write-Output "GPOs created and configured successfully."
+
+
+
+
+
+
+Import-Module ActiveDirectory
+Import-Module GroupPolicy
+
+# 1. "ClientComputers" OUの作成
+$ouPath = "DC=example,DC=local"
+$newOU = "OU=ClientComputers,$ouPath"
+New-ADOrganizationalUnit -Name "ClientComputers" -Path $ouPath -ProtectedFromAccidentalDeletion $true
+
+Write-Output "Organizational Unit 'ClientComputers' created under 'example.local'."
+
+# 2. "Computers"コンテナ内のコンピュータオブジェクトを"ClientComputers" OUに移動
+$computers = Get-ADComputer -Filter "WC*" -SearchBase "CN=Computers,$ouPath" | ?{$_.Name -like "WC*"}
+foreach ($computer in $computers) {
+    Move-ADObject -Identity $computer.DistinguishedName -TargetPath $newOU
+    Write-Output "Moved computer '$($computer.Name)' to 'ClientComputers' OU."
+}
+
+# 3. "DisablePowerControl" GPOの作成とリンク
+$GPOName = "DisablePowerControl"
+New-GPO -Name $GPOName -Comment "Disable power control options"
+New-GPLink -Name $GPOName -Target $newOU
+
+Write-Output "GPO '$GPOName' created and linked to 'ClientComputers' OU."
+
+# 4. GPOの設定変更
+Set-GPRegistryValue -Name $GPOName -Key "HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer" -ValueName "HidePowerOptions" -Type DWord -Value 1
+
+Write-Output "GPO '$GPOName' configured to disable power control options."
+
+
+
+
+

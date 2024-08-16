@@ -1,0 +1,43 @@
+
+# 不調
+
+
+
+
+
+
+# NWアダプタ"内部NW"のIPアドレスの第2オクテットの数字を取得し、変数$PodNumberに代入する
+$adapterName = "内部NW"
+$ipAddress = (Get-NetIPAddress -InterfaceAlias $adapterName -AddressFamily IPv4).IPAddress
+$PodNumber = $ipAddress.Split('.')[1]
+
+
+
+# iSCSIターゲットのIPアドレス
+$targetIp = "10.$($PodNumber).2.105"
+
+# iSCSIターゲットに接続する
+$isConnected = Connect-IscsiTarget -TargetPortalAddress $targetIp
+
+if ($isConnected) {
+    Write-Output "iSCSIターゲットに正常に接続されました: $targetIp"
+} else {
+    Write-Output "iSCSIターゲットへの接続に失敗しました: $targetIp"
+}
+
+
+
+# 新しく接続されたiSCSIディスクを取得する
+$disk = Get-Disk | Where-Object PartitionStyle -Eq 'RAW'
+
+# ディスクを初期化する
+Initialize-Disk -Number $disk.Number -PartitionStyle MBR
+
+# 新しいパーティションを作成し、フォーマットする
+$partition = New-Partition -DiskNumber $disk.Number -UseMaximumSize -AssignDriveLetter
+Format-Volume -Partition $partition -FileSystem NTFS -NewFileSystemLabel "iSCSIVolume"
+
+Write-Output "iSCSI仮想ディスクがフォーマットされ、マウントされました。"
+
+
+

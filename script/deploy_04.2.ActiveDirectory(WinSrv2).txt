@@ -1,0 +1,34 @@
+
+
+# NWアダプタ"内部NW"のIPアドレスの第2オクテットの数字を取得し、変数$PodNumberに代入する
+$adapterName = "トランクNW"
+$ipAddress = (Get-NetIPAddress -InterfaceAlias $adapterName -AddressFamily IPv4).IPAddress
+$PodNumber = $ipAddress.Split('.')[1]
+
+# DNSサーバーの設定
+$dnsServer = "10.$PodNumber.1.104"
+
+# "内部NW"アダプターのDNSサーバーを設定する
+$internalAdapterName = "トランクNW"
+Set-DnsClientServerAddress -InterfaceAlias $internalAdapterName -ServerAddresses $dnsServer
+
+
+
+
+
+
+# Windows ClientのActive Directoryドメイン参加の準備
+$domainName = "example.local"
+$username = "EXAMPLE\Spike"
+$password = 'Pa$$w0rd'
+
+# クレデンシャルの作成
+$securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+$credential = New-Object System.Management.Automation.PSCredential ($username, $securePassword)
+
+# ドメイン参加
+Add-Computer -DomainName $domainName -Credential $credential -Restart -Force
+
+
+
+

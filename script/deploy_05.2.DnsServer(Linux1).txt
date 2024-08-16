@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# スクリプトのエラーハンドリング
+set -e
+
+# 1. BINDのインストール
+echo "Installing BIND..."
+sudo yum -y install bind bind-utils
+
+# 2. インストールされたパッケージの確認
+echo "Checking installed packages..."
+yum list installed | grep bind
+
+# 3. BIND(named)ツールのバージョン確認
+echo "Checking BIND version..."
+named -v
+
+# 4. BIND(named)サービスのステータス確認
+echo "Checking BIND service status..."
+systemctl status named || true
+
+# 5. example.comゾーンファイルの作成
+echo "Creating example.com zone file..."
+sudo touch /etc/named/example.com.zone
+
+# 6. example.comゾーンファイルのバックアップ作成
+echo "Backing up example.com zone file..."
+sudo cp /etc/named/example.com.zone /etc/named/example.com.zone.bak
+
+# 7. example.comゾーンファイルの編集
+echo "Editing example.com zone file..."
+sudo bash -c 'cat > /etc/named/example.com.zone <<EOF
+\$TTL    300
+@       IN      SOA     ns.example.com. admin.example.com. (
+                        1; Serial
+                        600     ; Refresh
+                        600     ; Retry
+                        600     ; Expire
+                        300 )   ; Negative Cache TTL
+@       IN      NS      ns.example.com.
+ns      IN      A       10.255.1.102
+www     IN      A       10.255.2.105
+EOF'
+
+# 8. BINDの構成ファイル(named.conf)のバックアップ作成
+echo "Backing up named.conf..."
+sudo cp /etc/named.conf /etc/named.conf.bak
+
+# 9. named.confの編集
+echo "Editing named.conf..."
+sudo sed -i.bak \
+-e 's/listen-on port 53 { 127.0.0.1; };/listen-on port 53 { any; };/' \
+-e 's/allow-query     { localhost; };/allow-query     { any; };/' \
+-e '/include "\/etc\/named.root.key";/a\
+zone "example.com" IN {\
+    type master;\
+    file "\/etc\/named\/example.com.zone";\
+};' \
+/etc/named.conf
+
+# 10. BIND(named)サービスを自動起動に設定
+echo "Enabling BIND service to start on boot..."
+sudo systemctl enable named
+
+# 11. BIND(named)サービスを再起動
+echo "Restarting BIND service..."
+sudo systemctl restart named
+
+# 12. BIND(named)サービスのステータス確認
+echo "Checking BIND service status..."
+systemctl status named
+
+echo "BIND setup completed successfully!"

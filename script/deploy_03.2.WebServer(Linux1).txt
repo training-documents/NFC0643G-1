@@ -1,0 +1,49 @@
+
+
+
+wget http://nginx.org/packages/centos/7/x86_64/RPMS/nginx-1.22.1-1.el7.ngx.x86_64.rpm
+
+sudo yum -y localinstall nginx-1.22.1-1.el7.ngx.x86_64.rpm
+
+
+sudo systemctl enable nginx
+
+sudo systemctl start nginx
+
+
+
+
+sudo cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak
+
+
+# Use sed to make the changes
+sudo sed -i '/include \/etc\/nginx\/conf\.d\/\*\.conf;/!b;n;c\ \ \ \ server {\n\ \ \ \ \ \ \ \ listen 80;\n\ \ \ \ \ \ \ \ location \/ {\n\ \ \ \ \ \ \ \ root \/var\/www\/html;\n\ \ \ \ \ \ \ \ }\n\ \ \ \ }\n}' /etc/nginx/nginx.conf
+
+
+sudo systemctl restart nginx
+
+sudo mkdir -p /var/www/html
+
+
+sudo touch /var/www/html/index.html
+
+
+sudo cp /var/www/html/index.html /var/www/html/index.html.bak
+
+
+# Use sed to write HTML content to the index.html file
+sudo sed -i '1i\<html>\n\nWhy was nginx so good at yoga? <br>\nBecause...\n\n</html>' /var/www/html/index.html
+
+
+
+
+# 手作業
+# include /etc/nginx/conf.d/*.conf をコメントアウトする
+#  /var/www/html/index.html にメッセージを記入する
+
+
+
+
+
+
+

@@ -1,0 +1,14 @@
+
+
+# ローカル ユーザー Tomを作成
+New-LocalUser -Name "Tom" -Password (ConvertTo-SecureString 'Pa$$w0rd' -AsPlainText -Force) -PasswordNeverExpires
+
+# ローカル ユーザー Jerryを作成
+New-LocalUser -Name "Jerry" -Password (ConvertTo-SecureString 'Pa$$w0rd' -AsPlainText -Force) -PasswordNeverExpires
+
+# ローカル グループ Remote Desktop Usersのメンバーを追加
+Add-LocalGroupMember -Group "Remote Desktop Users" -Member "Tom"
+Add-LocalGroupMember -Group "Remote Desktop Users" -Member "Jerry"
+
+
+

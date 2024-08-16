@@ -1,0 +1,28 @@
+# iSCSIターゲットの役割をインストールする
+Install-WindowsFeature -Name FS-iSCSITarget-Server -IncludeManagementTools
+
+Write-Output "iSCSIターゲットの役割が正常にインストールされました。"
+
+
+# NWアダプタ"トランクNW"のIPアドレスの第2オクテットの数字を取得し、変数$PodNumberに代入する
+$adapterName = "トランクNW"
+$ipAddress = (Get-NetIPAddress -InterfaceAlias $adapterName -AddressFamily IPv4).IPAddress
+$PodNumber = $ipAddress.Split('.')[1]
+
+# iSCSI仮想ディスクのパス
+$diskPath = "C:\iSCSIVirtualDisks\iscsidisk.vhdx"
+
+# iSCSI仮想ディスクを作成する
+New-IscsiVirtualDisk -Path $diskPath -Size 40GB
+
+# 新しいiSCSIターゲットを作成する
+New-IscsiServerTarget -TargetName "iscsi"
+
+# iSCSI仮想ディスクをターゲットに追加する
+Add-IscsiVirtualDiskTargetMapping -TargetName "iscsi" -Path $diskPath
+
+Write-Output "iSCSIターゲット 'iscsi' が作成され、仮想ディスク '$diskPath' がターゲットにマッピングされました。"
+
+
+
+

@@ -1,0 +1,45 @@
+
+
+# 不調
+
+
+
+# DNSサーバーの役割をインストールする
+Install-WindowsFeature -Name DNS -IncludeManagementTools
+
+
+
+
+
+# DNSサーバーモジュールをインポート
+Import-Module DNSServer
+
+# NWアダプタ"トランクNW"のIPアドレスの第2オクテットの数字を取得し、変数$PodNumberに代入する
+$adapterName = "トランクNW"
+$ipAddress = (Get-NetIPAddress -InterfaceAlias $adapterName -AddressFamily IPv4).IPAddress
+$PodNumber = $ipAddress.Split('.')[1]
+
+# "example.local" のセカンダリDNSサーバーとして構成する
+$zoneNamePrimary = "example.local"
+$masterServer = "10.$PodNumber.1.104"
+
+Add-DnsServerSecondaryZone -Name $zoneNamePrimary -MasterServers $masterServer -ZoneFile "example.local.zone"
+
+Write-Output "Secondary DNS server configured for zone '$zoneNamePrimary' with master server '$masterServer'."
+
+# "sub.example.local" のプライマリDNSサーバーとして構成する
+$zoneNameSecondary = "sub.example.local"
+
+Add-DnsServerPrimaryZone -Name $zoneNameSecondary -ZoneFile "$zoneNameSecondary.dns"
+
+Write-Output "Primary DNS server configured for zone '$zoneNameSecondary'."
+
+# "sub.example.local" ゾーンにCNAMEレコードを追加する
+$CNAMERecords = @(
+    @{ Alias = "Proxy"; Target = "Linux1.example.local" }
+)
+
+foreach ($record in $CNAMERecords) {
+    Add-DnsServerResourceRecordCName -Name $record.Alias -ZoneName $zoneNameSecondary -HostNameAlias $record.Target
+    Write-Output "Added CNAME record for $($record.Alias) pointing to $($record.Target) in zone $zoneNameSecondary"
+}

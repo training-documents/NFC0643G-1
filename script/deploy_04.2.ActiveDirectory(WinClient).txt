@@ -1,0 +1,98 @@
+
+
+# Windows ClientのActive Directoryドメイン参加の準備
+$domainName = "example.local"
+$username = "EXAMPLE\Tom"
+$password = 'Pa$$w0rd'
+
+# クレデンシャルの作成
+$securePassword = ConvertTo-SecureString $password -AsPlainText -Force
+$credential = New-Object System.Management.Automation.PSCredential ($username, $securePassword)
+
+# ドメイン参加
+Add-Computer -DomainName $domainName -Credential $credential -Restart -Force
+
+
+
+
+
+
+
+
+# PowerShellを管理者として実行していることを確認
+if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Warning "This script needs to be run as an Administrator."
+    exit
+}
+
+# "DL_WinClient_FullControl"グループをローカルAdministratorsグループに追加
+try {
+    Add-LocalGroupMember -Group "Administrators" -Member "DL_WinClient_FullControl"
+    Write-Output "Successfully added DL_WinClient_FullControl to Administrators"
+} catch {
+    Write-Error "Failed to add DL_WinClient_FullControl to Administrators. $_"
+}
+
+# "Domain Users"グループをローカルRemote Desktop Usersグループに追加
+try {
+    Add-LocalGroupMember -Group "Remote Desktop Users" -Member "Domain Users"
+    Write-Output "Successfully added Domain Users to Remote Desktop Users"
+} catch {
+    Write-Error "Failed to add Domain Users to Remote Desktop Users. $_"
+}
+
+
+
+
+
+
+
+
+# PowerShellを管理者として実行していることを確認
+if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+    Write-Warning "This script needs to be run as an Administrator."
+    exit
+}
+
+# NTFSアクセス権を設定する関数
+function Set-NTFSAccess {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Account,
+
+        [Parameter(Mandatory = $true)]
+        [string]$AccessRight
+    )
+
+    try {
+        $acl = Get-Acl $Path
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($Account, $AccessRight, "ContainerInherit, ObjectInherit", "None", "Allow")
+        $acl.SetAccessRule($rule)
+        Set-Acl -Path $Path -AclObject $acl
+        Write-Output "Successfully set $AccessRight access for $Account on $Path"
+    } catch {
+        Write-Error "Failed to set $AccessRight access for $Account on $Path. $_"
+    }
+}
+
+# フォルダパスを指定
+$folderPath = "C:\Share"
+
+# フォルダが存在しない場合は作成
+if (-not (Test-Path -Path $folderPath)) {
+    New-Item -ItemType Directory -Path $folderPath
+    Write-Output "Created folder $folderPath"
+}
+
+# "DL_FileServer_ReadOnly"グループに読み取り権限を設定
+Set-NTFSAccess -Path $folderPath -Account "example.local\DL_FileServer_ReadOnly" -AccessRight "ReadAndExecute"
+
+# "DL_FileServer_FullAccess"グループにフルコントロール権限を設定
+Set-NTFSAccess -Path $folderPath -Account "example.local\DL_FileServer_FullAccess" -AccessRight "FullControl"
+
+
+
+
