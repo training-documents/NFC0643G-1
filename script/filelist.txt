@@ -1,0 +1,3 @@
+https://raw.githubusercontent.com/training-documents/NFC0643G-1/main/script/deploy_02.1.FileServer(WinClient).txt
+https://raw.githubusercontent.com/training-documents/NFC0643G-1/main/script/deploy_02.1.FileServer(WinSrv2).txt
+
