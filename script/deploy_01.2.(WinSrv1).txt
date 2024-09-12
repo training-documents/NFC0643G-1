@@ -1,0 +1,21 @@
+
+# NWアダプタ""内部NW"のIPアドレスの第2オクテットの数字を取得し、変数$PodNumberに代入する
+$adapterName = "内部NW"
+$ipAddress = (Get-NetIPAddress -InterfaceAlias $adapterName -AddressFamily IPv4).IPAddress
+$PodNumber = $ipAddress.Split('.')[1]
+$gateway = "10.$($PodNumber).1.254"
+
+
+
+
+netsh advfirewall set allprofile state off
+
+
+
+route add -p  "10.$($PodNumber).2.0" mask "255.255.255.0" $gateway 
+
+route add -p  "10.$($PodNumber).3.0" mask "255.255.255.0" $gateway 
+
+
+
+

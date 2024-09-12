@@ -1,0 +1,12 @@
+
+
+configure 
+
+set sys host Router1
+
+set protocols static route 10.X.3.0/24 next-hop 10.X.2.254
+
+commit
+
+save
+

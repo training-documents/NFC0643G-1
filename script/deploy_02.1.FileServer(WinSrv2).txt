@@ -31,11 +31,19 @@ $acl = Get-Acl $folderPath
 # 継承されたアクセス許可をこのオブジェクトの明示的なアクセス許可に変換する
 $acl.SetAccessRuleProtection($true, $true)
 
+# ACLを設定する
+Set-Acl $folderPath $acl
+
+
+# フォルダC:\ShareのNTFSアクセス許可を設定する
+$acl = Get-Acl $folderPath
+
+
 # Authenticated Userのアクセス権を削除する
-$acl.Access | Where-Object { $_.IdentityReference -eq "NT AUTHORITY\Authenticated Users" } | ForEach-Object { $acl.RemoveAccessRule($_) }
+$acl.Access | Where-Object { $_.IdentityReference -eq "NT AUTHORITY\Authenticated Users" } | ForEach-Object { $acl.RemoveAccessRuleAll($_) }
 
 # Userのアクセス権を削除する
-$acl.Access | Where-Object { $_.IdentityReference -eq "BUILTIN\Users" } | ForEach-Object { $acl.RemoveAccessRule($_) }
+$acl.Access | Where-Object { $_.IdentityReference -eq "BUILTIN\Users" } | ForEach-Object { $acl.RemoveAccessRuleAll($_) }
 
 # File Server Users グループに変更を許可する
 $permission = "Modify"

@@ -1,0 +1,7 @@
+
+sudo cp /etc/selinux/config /etc/selinux/config.bak  # バックアップ作成
+sudo sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config
+
+sudo hostname linux2
+
+sudo systemctl reboot

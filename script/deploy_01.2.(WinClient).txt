@@ -1,0 +1,24 @@
+
+# NWアダプタ""内部NW"のIPアドレスの第2オクテットの数字を取得し、変数$PodNumberに代入する
+$adapterName = "内部NW"
+$ipAddress = (Get-NetIPAddress -InterfaceAlias $adapterName -AddressFamily IPv4).IPAddress
+$PodNumber = $ipAddress.Split('.')[1]
+
+
+
+
+netsh advfirewall set allprofile state off
+
+
+# [内部NW]アダプターの設定を変更する
+$adapterName = "内部NW"  # アダプターの名前を正確に指定する必要があります
+$ipAddress = "10.$($PodNumber).1.103"
+$subnetMask = "255.255.255.0"
+$gateway = "10.$($PodNumber).1.254"
+
+
+Get-NetAdapter -Name $adapterName | Set-NetIPAddress -IPAddress $ipAddress -PrefixLength 24
+route add -p "0.0.0.0" mask "0.0.0.0" $gateway 
+
+Set-DnsClientServerAddress -InterfaceAlias $adapterName -ServerAddresses @()
+

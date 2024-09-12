@@ -1,0 +1,6 @@
+sudo vi /etc/sysconfig/network-scripts/route-eth1
+
+10.X.2.0/24 via 10.X.1.254
+10.X.3.0/24 via 10.X.1.254
+
+sudo service network restart
